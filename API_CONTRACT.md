@@ -80,18 +80,143 @@ Fetches popular spots and hidden gems for a specific city.
 
 ---
 
-## 3. Get Trip Cheat Sheet
-Fetches local rules and nuances for the requested city.
-* **URL:** `/api/nuances?city=Warsaw`
+## 3. Get Trip Cheat Sheet (Nuances)
+Fetches specific local rules and nuances based on the exact places the user plans to visit.
+* **URL:** `/api/nuances`
+* **Method:** `POST`
+
+**Request Body (Frontend -> Backend):**
+```json
+{
+  "selectedPlaces": [
+    {
+      "placeId": "v_pop_1",
+      "name": "Schönbrunn Palace",
+      "category": "Popular"
+    },
+    {
+      "placeId": "v_gem_1",
+      "name": "Hundertwasserhaus",
+      "category": "Hidden Gem"
+    }
+  ]
+}
+```
+
+**Response Body (Backend -> Frontend):**
+```json
+{
+  "cheatSheet": [
+    { 
+      "category": "Attraction Specific", 
+      "tip": "Photography is strictly prohibited inside the main state rooms of Schönbrunn Palace." 
+    },
+    { 
+      "category": "Transport", 
+      "tip": "Take the U4 subway line directly to the Schönbrunn station." 
+    },
+    { 
+      "category": "Neighborhood", 
+      "tip": "The area around Hundertwasserhaus is residential; please keep noise levels down." 
+    }
+  ]
+}
+```
+
+## 4. Get Place Recommendations
+Returns a mix of Google API popular spots and hard-coded hidden gems.
+* **URL:** `/api/recommendations/places`
 * **Method:** `GET`
 
 **Response Body:**
 ```json
 {
-  "city": "Warsaw",
-  "cheatSheet": [
-    { "category": "Transport", "tip": "Validate paper tickets upon boarding." },
-    { "category": "Dining", "tip": "Tipping 10% is standard in sit-down restaurants." }
+  "city": "Vienna",
+  "places": [
+    {
+      "placeId": "v_pop_1",
+      "name": "Schönbrunn Palace",
+      "category": "Popular",
+      "rating": 4.8,
+      "reviewVolume": 45000,
+      "lat": 48.1848,
+      "lng": 16.3122
+    },
+    {
+      "placeId": "v_gem_1",
+      "name": "Hundertwasserhaus",
+      "category": "Hidden Gem",
+      "rating": 4.6,
+      "reviewVolume": 1200,
+      "lat": 48.2077,
+      "lng": 16.3939
+    }
+  ]
+}
+```
+
+---
+
+## 5. Get Flight Recommendations
+Returns flight options combined with our custom Airline Review Analysis.
+* **URL:** `/api/recommendations/flights`
+* **Method:** `GET`
+
+**Response Body:**
+```json
+{
+  "destination": "Vienna",
+  "flights": [
+    {
+      "flightId": "FR1234",
+      "airline": "Ryanair",
+      "priceEstimate": "€45",
+      "insights": {
+        "price": "Very low",
+        "comfort": "Low, basic but acceptable for short flights",
+        "service": "Generally friendly but limited service",
+        "baggagePolicy": "Strict but clear rules",
+        "reliability": "Often punctual"
+      }
+    },
+    {
+      "flightId": "W65432",
+      "airline": "Wizz Air",
+      "priceEstimate": "€38",
+      "insights": {
+        "price": "Low prices",
+        "comfort": "Medium, newer aircraft but still basic",
+        "service": "Inconsistent, often criticized",
+        "baggagePolicy": "Strict and confusing",
+        "reliability": "Unreliable, poor disruption handling"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## 6. Get Hotel Recommendations
+Returns accommodations centered around the route, filtered by safety and providing external booking links.
+* **URL:** `/api/recommendations/hotels`
+* **Method:** `GET`
+
+**Response Body:**
+```json
+{
+  "destination": "Vienna",
+  "hotels": [
+    {
+      "hotelId": "hot_111",
+      "name": "Motel One Wien-Staatsoper",
+      "pricePerNight": "€120",
+      "lat": 48.2023,
+      "lng": 16.3688,
+      "verifiedLodgingScore": 9.2,
+      "safetyStatus": "Verified Safe Area",
+      "externalBookingLink": "[https://www.booking.com/hotel/at/motel-one-wien-staatsoper.html](https://www.booking.com/hotel/at/motel-one-wien-staatsoper.html)"
+    }
   ]
 }
 ```
