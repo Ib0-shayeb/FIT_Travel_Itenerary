@@ -1,4 +1,5 @@
 # FIT_Travel_Itenerary
 
 ## BACKEND SETUP
-''' pip install -r requirements.txt '''
+```cd backend```
+```pip install -r requirements.txt```
