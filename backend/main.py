@@ -1,7 +1,62 @@
+import os
+from flight_client import FlightClient
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import httpx
 
-app = FastAPI(title="Trip Planner Mock API")
+# Load the secret keys from the .env file
+load_dotenv()
+
+# ==========================================
+# 1. STARTUP HEALTH CHECK (DUFFEL API)
+# ==========================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀 Booting up server... Running health checks.")
+    
+    # Securely grab the API key
+    duffel_api_key = os.getenv("DUFFEL_API_KEY")
+    
+    if not duffel_api_key:
+        print("❌ ERROR: DUFFEL_API_KEY is missing from the .env file!")
+    else:
+        # Test query: Ask Duffel for a list of airlines, limited to 1 just to prove auth works
+        test_api_url = "https://api.duffel.com/air/airlines?limit=1"
+        
+        # Duffel requires these exact headers
+        headers = {
+            "Authorization": f"Bearer {duffel_api_key}",
+            "Duffel-Version": "v2",
+            "Accept": "application/json"
+        } 
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(test_api_url, headers=headers, timeout=5.0)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    # Grab the airline name from the response to prove it worked
+                    airline_name = data.get("data", [{}])[0].get("name", "Unknown")
+                    print(f"✅ Duffel API is ONLINE. Test Query Successful (Found: {airline_name})")
+                elif response.status_code == 401:
+                    print("❌ ERROR: Duffel API rejected our key! Check your .env file.")
+                else:
+                    print(f"⚠️ Warning: Duffel API returned status {response.status_code}")
+                    print(f"🔍 Duffel Error Message: {response.text}")
+                    
+        except Exception as e:
+             print(f"❌ ERROR: Duffel API is unreachable! Details: {e}")
+
+    yield 
+    print("🛑 Server shutting down.")
+
+# ==========================================
+# 2. FASTAPI SETUP
+# ==========================================
+app = FastAPI(title="Trip Planner API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -9,6 +64,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ... (Keep all your existing @app.get and @app.post routes below here)
 
 # --- ORIGINAL ENDPOINTS ---
 
@@ -84,35 +141,31 @@ def get_recommended_places():
     }
 
 @app.get("/api/recommendations/flights")
-def get_recommended_flights():
+async def get_recommended_flights(
+    origin: str = "LHR",          # Default to London
+    destination: str = "VIE",     # Default to Vienna
+    date: str = "2026-08-15",     # Use a future YYYY-MM-DD date
+    adults: int = 1,
+    children: int = 0
+):
+    client = FlightClient()
+    
+    live_flights = await client.get_flight_recommendations(
+        origin_code=origin,
+        destination_code=destination,
+        departure_date=date,
+        adults=adults,
+        children=children
+    )
+    
     return {
-        "destination": "Vienna",
-        "flights": [
-            {
-                "flightId": "FR1234",
-                "airline": "Ryanair",
-                "priceEstimate": "€45",
-                "insights": {
-                    "price": "Very low",
-                    "comfort": "Low, basic but acceptable for short flights",
-                    "service": "Generally friendly but limited service",
-                    "baggagePolicy": "Strict but clear rules",
-                    "reliability": "Often punctual"
-                }
-            },
-            {
-                "flightId": "LO555",
-                "airline": "LOT Polish Airlines",
-                "priceEstimate": "€85",
-                "insights": {
-                    "price": "Low prices",
-                    "comfort": "Medium-low depends on the aircraft",
-                    "service": "Sometimes professional, sometimes unresponsive",
-                    "baggagePolicy": "Issues reported",
-                    "reliability": "Delays and cancellations reported"
-                }
-            }
-        ]
+        "search_parameters": {
+            "origin": origin,
+            "destination": destination,
+            "date": date,
+            "passengers": adults + children
+        },
+        "flights": live_flights
     }
 
 @app.get("/api/recommendations/hotels")
