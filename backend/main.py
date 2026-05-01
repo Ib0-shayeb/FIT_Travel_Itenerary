@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from places_client import PlacesClient
 import httpx
 
 # Load the secret keys from the .env file
@@ -52,6 +53,28 @@ async def lifespan(app: FastAPI):
 
     yield 
     print("🛑 Server shutting down.")
+
+    # --- GOOGLE PLACES HEALTH CHECK ---
+    google_api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if not google_api_key:
+        print("❌ ERROR: GOOGLE_PLACES_API_KEY is missing from the .env file!")
+    else:
+        test_google_url = "https://places.googleapis.com/v1/places:searchText"
+        google_headers = {
+            "X-Goog-Api-Key": google_api_key,
+            "X-Goog-FieldMask": "places.displayName.text",
+            "Content-Type": "application/json"
+        }
+        # We just ask for 1 place to prove the key works
+        try:
+            async with httpx.AsyncClient() as client:
+                g_res = await client.post(test_google_url, headers=google_headers, json={"textQuery": "Eiffel Tower"}, timeout=5.0)
+                if g_res.status_code == 200:
+                    print("✅ Google Places API is ONLINE.")
+                else:
+                    print(f"❌ Google API rejected our key! Status: {g_res.status_code}")
+        except Exception as e:
+                print(f"❌ ERROR: Google API is unreachable! Details: {e}")
 
 # ==========================================
 # 2. FASTAPI SETUP
@@ -115,29 +138,14 @@ def optimize_mock_trip(request_data: dict):
 # --- NEW RECOMMENDATION ENDPOINTS ---
 
 @app.get("/api/recommendations/places")
-def get_recommended_places():
+async def get_recommended_places(city: str = "Vienna"):
+    client = PlacesClient()
+
+    live_places = await client.get_place_recommendations(city)
+
     return {
-        "city": "Vienna",
-        "places": [
-            {
-                "placeId": "v_pop_1",
-                "name": "Schönbrunn Palace",
-                "category": "Popular",
-                "rating": 4.8,
-                "reviewVolume": 45000,
-                "lat": 48.1848,
-                "lng": 16.3122
-            },
-            {
-                "placeId": "v_gem_1",
-                "name": "Hundertwasserhaus",
-                "category": "Hidden Gem",
-                "rating": 4.6,
-                "reviewVolume": 1200,
-                "lat": 48.2077,
-                "lng": 16.3939
-            }
-        ]
+        "city": city,
+        "places": live_places
     }
 
 @app.get("/api/recommendations/flights")
