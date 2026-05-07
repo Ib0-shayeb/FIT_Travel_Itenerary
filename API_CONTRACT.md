@@ -91,12 +91,12 @@ Fetches specific local rules and nuances based on the exact places the user plan
   "selectedPlaces": [
     {
       "placeId": "v_pop_1",
-      "name": "Schönbrunn Palace",
+      "name": "St. Mark's Basilica",
       "category": "Popular"
     },
     {
       "placeId": "v_gem_1",
-      "name": "Hundertwasserhaus",
+      "name": "Libreria Acqua Alta",
       "category": "Hidden Gem"
     }
   ]
@@ -109,15 +109,15 @@ Fetches specific local rules and nuances based on the exact places the user plan
   "cheatSheet": [
     { 
       "category": "Attraction Specific", 
-      "tip": "Photography is strictly prohibited inside the main state rooms of Schönbrunn Palace." 
+      "tip": "Photography is strictly prohibited inside the main state rooms of St. Mark's Basilica." 
     },
     { 
       "category": "Transport", 
-      "tip": "Take the U4 subway line directly to the Schönbrunn station." 
+      "tip": "Take the Vaporetto Line 1 directly to the San Marco Vallaresso station." 
     },
     { 
       "category": "Neighborhood", 
-      "tip": "The area around Hundertwasserhaus is residential; please keep noise levels down." 
+      "tip": "The area around Libreria Acqua Alta is residential; please keep noise levels down." 
     }
   ]
 }
@@ -131,25 +131,25 @@ Returns a mix of Google API popular spots and hard-coded hidden gems.
 **Response Body:**
 ```json
 {
-  "city": "Vienna",
+  "city": "Venice",
   "places": [
     {
       "placeId": "v_pop_1",
-      "name": "Schönbrunn Palace",
+      "name": "St. Mark's Basilica",
       "category": "Popular",
       "rating": 4.8,
       "reviewVolume": 45000,
-      "lat": 48.1848,
-      "lng": 16.3122
+      "lat": 45.4345,
+      "lng": 12.3397
     },
     {
       "placeId": "v_gem_1",
-      "name": "Hundertwasserhaus",
+      "name": "Libreria Acqua Alta",
       "category": "Hidden Gem",
-      "rating": 4.6,
-      "reviewVolume": 1200,
-      "lat": 48.2077,
-      "lng": 16.3939
+      "rating": 4.7,
+      "reviewVolume": 8500,
+      "lat": 45.4379,
+      "lng": 12.3421
     }
   ]
 }
@@ -165,7 +165,7 @@ Returns flight options combined with our custom Airline Review Analysis.
 **Response Body:**
 ```json
 {
-  "destination": "Vienna",
+  "destination": "Venice",
   "flights": [
     {
       "flightId": "FR1234",
@@ -205,17 +205,17 @@ Returns accommodations centered around the route, filtered by safety and providi
 **Response Body:**
 ```json
 {
-  "destination": "Vienna",
+  "destination": "Venice",
   "hotels": [
     {
       "hotelId": "hot_111",
-      "name": "Motel One Wien-Staatsoper",
-      "pricePerNight": "€120",
-      "lat": 48.2023,
-      "lng": 16.3688,
-      "verifiedLodgingScore": 9.2,
+      "name": "Hotel Danieli",
+      "pricePerNight": "€450",
+      "lat": 45.4337,
+      "lng": 12.3421,
+      "verifiedLodgingScore": 9.5,
       "safetyStatus": "Verified Safe Area",
-      "externalBookingLink": "[https://www.booking.com/hotel/at/motel-one-wien-staatsoper.html](https://www.booking.com/hotel/at/motel-one-wien-staatsoper.html)"
+      "externalBookingLink": "[https://www.booking.com/hotel/it/danieli-venice.html](https://www.booking.com/hotel/it/danieli-venice.html)"
     }
   ]
 }
