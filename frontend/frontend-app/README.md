@@ -12,11 +12,19 @@ A full-stack travel itinerary planning application built with:
 
 # Frontend Setup
 
-```bash id="u7m2q5"
+
+Install dependencies:
+
+```bash
 cd frontend/frontend-app
 npm install
+
+
+Run frontend:
+
+```bash
 npm run dev
-```
+
 
 Frontend runs on:
 http://localhost:5173
