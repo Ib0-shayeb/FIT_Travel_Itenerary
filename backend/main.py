@@ -109,7 +109,7 @@ def get_mock_nuances(request_data: dict):
     
     # Add some general transport rules that always apply
     dynamic_tips.append(
-        {"category": "Transport", "tip": "Validate paper tickets upon boarding the U-Bahn."}
+        {"category": "Transport", "tip": "Validate paper tickets upon boarding the Vaporetto."}
     )
 
     return {
@@ -127,8 +127,8 @@ def optimize_mock_trip(request_data: dict):
                 "totalTimeMinutes": 320,
                 "route": [
                     {"step": 1, "name": hotel_name, "isHotel": True},
-                    {"step": 2, "name": "Mock Output: Schönbrunn Palace", "travelToNextMins": 25},
-                    {"step": 3, "name": "Mock Output: Hundertwasserhaus", "travelToNextMins": 15},
+                    {"step": 2, "name": "Mock Output: St. Mark's Basilica", "travelToNextMins": 25},
+                    {"step": 3, "name": "Mock Output: Rialto Bridge", "travelToNextMins": 15},
                     {"step": 4, "name": hotel_name, "isHotel": True}
                 ]
             }
@@ -138,7 +138,7 @@ def optimize_mock_trip(request_data: dict):
 # --- NEW RECOMMENDATION ENDPOINTS ---
 
 @app.get("/api/recommendations/places")
-async def get_recommended_places(city: str = "Vienna"):
+async def get_recommended_places(city: str = "Venice"):
     client = PlacesClient()
 
     live_places = await client.get_place_recommendations(city)
@@ -151,7 +151,7 @@ async def get_recommended_places(city: str = "Vienna"):
 @app.get("/api/recommendations/flights")
 async def get_recommended_flights(
     origin: str = "LHR",          # Default to London
-    destination: str = "VIE",     # Default to Vienna
+    destination: str = "VCE",     # Default to Venice
     date: str = "2026-08-15",     # Use a future YYYY-MM-DD date
     adults: int = 1,
     children: int = 0
@@ -179,27 +179,27 @@ async def get_recommended_flights(
 @app.get("/api/recommendations/hotels")
 def get_recommended_hotels():
     return {
-        "destination": "Vienna",
+        "destination": "Venice",
         "hotels": [
             {
                 "hotelId": "hot_111",
-                "name": "Motel One Wien-Staatsoper",
-                "pricePerNight": "€120",
-                "lat": 48.2023,
-                "lng": 16.3688,
-                "verifiedLodgingScore": 9.2,
+                "name": "Hotel Danieli",
+                "pricePerNight": "€450",
+                "lat": 45.4337,
+                "lng": 12.3421,
+                "verifiedLodgingScore": 9.5,
                 "safetyStatus": "Verified Safe Area",
-                "externalBookingLink": "https://www.booking.com/hotel/at/motel-one-wien-staatsoper.html"
+                "externalBookingLink": "https://www.booking.com/hotel/it/danieli-venice.html"
             },
             {
                 "hotelId": "hot_222",
-                "name": "Boutique Hotel am Stephansplatz",
-                "pricePerNight": "€210",
-                "lat": 48.2082,
-                "lng": 16.3719,
-                "verifiedLodgingScore": 9.6,
+                "name": "Belmond Hotel Cipriani",
+                "pricePerNight": "€800",
+                "lat": 45.4239,
+                "lng": 12.3384,
+                "verifiedLodgingScore": 9.8,
                 "safetyStatus": "Verified Safe Area",
-                "externalBookingLink": "https://www.booking.com/hotel/at/boutique-hotel-am-stephansplatz.html"
+                "externalBookingLink": "https://www.booking.com/hotel/it/belmond-cipriani.html"
             }
         ]
     }

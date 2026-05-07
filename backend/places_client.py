@@ -69,24 +69,24 @@ class PlacesClient:
         # --- 2. Inject our "Hidden Gems" from the Report ---
         # Later, your Data Manager will pull these from Supabase. 
         # For now, we hardcode them to prove the concept works.
-        if city.lower() == "vienna":
+        if city.lower() == "venice":
             formatted_places.append({
                 "placeId": "v_gem_1",
-                "name": "Hundertwasserhaus",
+                "name": "Libreria Acqua Alta",
                 "category": "Hidden Gem",
-                "rating": 4.6,
-                "reviewVolume": 1200,
-                "lat": 48.2077,
-                "lng": 16.3939
+                "rating": 4.7,
+                "reviewVolume": 8500,
+                "lat": 45.4379,
+                "lng": 12.3421
             })
             formatted_places.append({
                 "placeId": "v_gem_2",
-                "name": "Krypt Bar (Secret Underground Vault)",
+                "name": "Scala Contarini del Bovolo",
                 "category": "Hidden Gem",
-                "rating": 4.8,
-                "reviewVolume": 450,
-                "lat": 48.2144,
-                "lng": 16.3615
+                "rating": 4.6,
+                "reviewVolume": 2100,
+                "lat": 45.4348,
+                "lng": 12.3346
             })
 
         return formatted_places
