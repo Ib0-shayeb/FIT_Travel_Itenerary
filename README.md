@@ -11,6 +11,7 @@ For reference check ```/backend/.env.example```
 
 ### Run
 ```cd backend```
+
 ```uvicorn main:app --reload```
 
 ### API Testing
@@ -19,8 +20,10 @@ http://localhost:8000/docs#/
 ## FRONTEND SETUP
 ### Install requirements
 ```cd frontend```
+
 ```npm install```
 ### Run
 ```cd frontend```
+
 ```npm run dev```
 
