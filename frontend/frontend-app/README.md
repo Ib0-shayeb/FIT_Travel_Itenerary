@@ -1,16 +1,71 @@
-# React + Vite
+# FIT Travel Itinerary App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack travel itinerary planning application built with:
 
-Currently, two official plugins are available:
+* React + Vite
+* FastAPI
+* React Leaflet Maps
+* Google Places API
+* Duffel Flight API
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+# Frontend Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash id="u7m2q5"
+cd frontend/frontend-app
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+Frontend runs on:
+http://localhost:5173
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+# Backend Setup
+
+Install dependencies:
+
+```bash id="n4x8v1"
+pip install fastapi uvicorn
+```
+
+Run backend:
+
+```bash id="r9k3w6"
+cd backend
+python -m uvicorn main:app --reload
+```
+
+Backend runs on:
+http://127.0.0.1:8000
+
+---
+
+# Features
+
+* Tourist attraction recommendations
+* Hotel recommendations
+* Flight recommendations
+* Interactive map visualization
+* Route optimization
+* FastAPI backend
+* React frontend
+
+---
+
+# Technologies
+
+Frontend:
+
+* React
+* Vite
+* React Leaflet
+
+Backend:
+
+* FastAPI
+* Python
+* Google Places API
+* Duffel API
