@@ -17,13 +17,21 @@ For reference check ```/backend/.env.example```
 ### API Testing
 http://localhost:8000/docs#/
 
-## FRONTEND SETUP
-### Install requirements
-```cd frontend```
+# Frontend Setup
 
-```npm install```
-### Run
-```cd frontend```
+Install dependencies:
 
-```npm run dev```
+```bash
+cd frontend
+cd frontend-app
+npm install
+```
 
+Run frontend:
+
+```bash
+npm run dev
+```
+
+Frontend runs on:
+http://localhost:5173
