@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 
+
 export default function Home({ setPage, setPlaces }) {
   const [budget, setBudget] = useState("");
   const [duration, setDuration] = useState("");
