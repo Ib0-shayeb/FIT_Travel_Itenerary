@@ -1,19 +1,33 @@
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-export default function MapView({ places = [] }) {
-  const center = [48.2082, 16.3738];
+export default function MapView({ places }) {
+
+  console.log("MAP DATA:", places);
 
   return (
-    <MapContainer center={center} zoom={13} style={{ height: "400px" }}>
+    <MapContainer
+      center={[45.4408, 12.3155]}
+      zoom={13}
+      style={{
+        height: "500px",
+        width: "100%",
+        marginTop: "20px",
+      }}
+    >
       <TileLayer
-        attribution="&copy; OpenStreetMap"
+        attribution='&copy; OpenStreetMap contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {places.map((p) => (
-        <Marker key={p.id} position={[p.lat, p.lng]}>
-          <Popup>{p.name}</Popup>
+      {places.map((place, index) => (
+        <Marker
+          key={index}
+          position={[place.lat, place.lng]}
+        >
+          <Popup>
+            {place.name}
+          </Popup>
         </Marker>
       ))}
     </MapContainer>

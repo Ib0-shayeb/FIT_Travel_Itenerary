@@ -1,41 +1,73 @@
-import { useEffect, useState } from "react";
 
-export default function Home({ setPage, setData }) {
-  const [places, setPlaces] = useState([]);
-  const [loading, setLoading] = useState(true);
+import { useState } from "react";
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch(
-          "http://localhost:8000/api/recommendations/places?city=Vienna"
-        );
-        const data = await res.json();
-        console.log(data);
-        setPlaces(data.places || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+export default function Home({ setPage, setPlaces }) {
+  const [budget, setBudget] = useState("");
+  const [duration, setDuration] = useState("");
+  const [interests, setInterests] = useState("");
 
-    fetchData();
-  }, []);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  if (loading) return <p>Loading...</p>;
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/recommendations/places"
+      );
+
+      const result = await response.json();
+
+      console.log("RESULT:", result);
+
+      setPlaces(result.places);
+
+      setPage("results");
+
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
 
   return (
-    <div>
-      <h1>Places</h1>
+    <div style={{ padding: "20px" }}>
+      <h1>Travel Planner</h1>
 
-      {places.map((p, index) => (
-     <p key={p.id || index}>{p.name}</p>
-     ))}
+      <form onSubmit={handleSubmit}>
 
-      <button onClick={() => setPage("results")}>
-        Go to Results
-      </button>
+        <div>
+          <label>Budget:</label>
+
+          <input
+            type="number"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label>Duration:</label>
+
+          <input
+            type="number"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label>Interests:</label>
+
+          <input
+            type="text"
+            value={interests}
+            onChange={(e) => setInterests(e.target.value)}
+          />
+        </div>
+
+        <button type="submit">
+          Generate Route
+        </button>
+
+      </form>
     </div>
   );
 }

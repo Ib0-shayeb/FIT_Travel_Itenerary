@@ -2,13 +2,19 @@ import { useState } from "react";
 import Home from "./pages/Home";
 import Results from "./pages/Results";
 
-export default function App() {
+function App() {
   const [page, setPage] = useState("home");
-  const [data, setData] = useState(null);
+  const [places, setPlaces] = useState([]);
 
-  if (page === "home") {
-    return <Home setPage={setPage} setData={setData} />;
-  }
-
-  return <Results setPage={setPage} data={data} />;
+  return (
+    <div>
+      {page === "home" ? (
+        <Home setPage={setPage} setPlaces={setPlaces} />
+      ) : (
+        <Results setPage={setPage} places={places} />
+      )}
+    </div>
+  );
 }
+
+export default App;
