@@ -19,6 +19,16 @@ class Place(BaseModel):
     coords: Coordinate
     durationMins: int
 
+class MedicalNode(BaseModel):
+    id: str
+    name: str
+    facility_type: str
+    lat: float
+    lng: float
+    is_24_7: bool
+    local_phone: str
+    emergency_dispatch: str
+
 class OptimizeRequest(BaseModel):
     days: int
     hotel: Place

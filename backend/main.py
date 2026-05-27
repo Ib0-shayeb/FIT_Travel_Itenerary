@@ -5,6 +5,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import httpx
 
+from supabase import create_client, Client
+import os
+
+# --- SUPABASE SETUP ---
+# Ensure these two variables are in your .env file!
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    print("⚠️ WARNING: Supabase URL or Key missing. Database calls will fail.")
+
 # 1. Your External API Clients
 from flight_client import FlightClient
 from places_client import PlacesClient
@@ -106,26 +119,31 @@ def get_mock_nuances(request_data: dict):
 
     return {"cheatSheet": dynamic_tips}
 
-# ---> THE CLEANED UP OPTIMIZE ENDPOINT <---
 @app.post("/api/trips/optimize", response_model=OptimizeResponse)
 def optimize_trip(request_data: OptimizeRequest):
     
-    # 1. Mocking the Medical Nodes (Ospedale Civile in Venice)
-    # Eventually, you will query this from your Supabase 'medical_nodes' table
-    medical_nodes = [
-        Coordinate(lat=45.4395, lng=12.3411), 
-        Coordinate(lat=45.4380, lng=12.3190)  
+    # 1. Fetch live Medical Nodes from Supabase
+    try:
+        db_response = supabase.table('medical_nodes').select("*").execute()
+        live_medical_nodes = db_response.data
+    except Exception as e:
+        print(f"❌ Supabase Error during optimization: {e}")
+        live_medical_nodes = [] # Fallback to empty if DB fails
+    
+    # 2. Extract just the coordinates for the math algorithm
+    medical_coords = [
+        Coordinate(lat=node['lat'], lng=node['lng']) for node in live_medical_nodes
     ]
     
-    # 2. Instantiate your Strategy Pattern class
+    # 3. Instantiate your Strategy Pattern class
     optimizer = SafeMedicalOptimizer()
     
-    # 3. Let the class do all the hard math!
+    # 4. Pass the live database coordinates into the algorithm!
     final_response = optimizer.calculate_route(
         trip_duration_days=request_data.days,
         hotel=request_data.hotel,
         places=request_data.places,
-        medical_nodes=medical_nodes
+        medical_nodes=medical_coords # Using live data here
     )
 
     return final_response
@@ -195,3 +213,13 @@ def get_recommended_hotels():
             }
         ]
     }
+
+    @app.get("/api/medical-nodes", response_model=List[MedicalNode])
+    def get_medical_nodes():
+        try:
+            # Fetch all rows from the 'medical_nodes' table
+            response = supabase.table('medical_nodes').select("*").execute()
+            return response.data
+        except Exception as e:
+            print(f"❌ Supabase Error: {e}")
+            return [] # Return an empty list if the database fails so the app doesn't crash
