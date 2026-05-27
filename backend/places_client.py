@@ -50,43 +50,29 @@ class PlacesClient:
             print(f"❌ Network Error: {e}")
             return [{"error": "Failed to connect to Google API"}]
 
-    def _format_and_mix_places(self, city: str, raw_places: list) -> List[Dict]:
+def _format_and_mix_places(self, city: str, raw_places: list) -> List[Dict]:
         formatted_places = []
         
         # --- 1. Process Google's "Popular" Places ---
-        # Let's just take the top 5 to keep the UI clean
         for place in raw_places[:5]: 
             formatted_places.append({
-                "placeId": place.get("id"),
+                "id": place.get("id"), # Renamed placeId to id for consistency
                 "name": place.get("displayName", {}).get("text", "Unknown"),
                 "category": "Popular",
-                "rating": place.get("rating", 0.0),
-                "reviewVolume": place.get("userRatingCount", 0),
-                "lat": place.get("location", {}).get("latitude", 0.0),
-                "lng": place.get("location", {}).get("longitude", 0.0)
+                "coords": { # Nested to match your Optimize endpoint!
+                    "lat": place.get("location", {}).get("latitude", 0.0),
+                    "lng": place.get("location", {}).get("longitude", 0.0)
+                }
             })
 
-        # --- 2. Inject our "Hidden Gems" from the Report ---
-        # Later, your Data Manager will pull these from Supabase. 
-        # For now, we hardcode them to prove the concept works.
+        # --- 2. Inject our "Hidden Gems" ---
         if city.lower() == "venice":
             formatted_places.append({
-                "placeId": "v_gem_1",
+                "id": "v_gem_1",
                 "name": "Libreria Acqua Alta",
                 "category": "Hidden Gem",
-                "rating": 4.7,
-                "reviewVolume": 8500,
-                "lat": 45.4379,
-                "lng": 12.3421
+                "coords": { "lat": 45.4379, "lng": 12.3421 }
             })
-            formatted_places.append({
-                "placeId": "v_gem_2",
-                "name": "Scala Contarini del Bovolo",
-                "category": "Hidden Gem",
-                "rating": 4.6,
-                "reviewVolume": 2100,
-                "lat": 45.4348,
-                "lng": 12.3346
-            })
-
+            # ... add other gems
+            
         return formatted_places
