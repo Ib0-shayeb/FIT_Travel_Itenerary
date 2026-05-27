@@ -3,10 +3,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from typing import List, Optional
 import httpx
 
 from supabase import create_client, Client
-import os
+
+# Load the secret keys from the .env file
+load_dotenv()
 
 # --- SUPABASE SETUP ---
 # Ensure these two variables are in your .env file!
@@ -27,11 +30,9 @@ from route_optimizer import (
     SafeMedicalOptimizer, 
     OptimizeRequest, 
     OptimizeResponse,
-    Coordinate
+    Coordinate,
+    MedicalNode
 )
-
-# Load the secret keys from the .env file
-load_dotenv()
 
 # ==========================================
 # STARTUP HEALTH CHECK 
@@ -214,12 +215,12 @@ def get_recommended_hotels():
         ]
     }
 
-    @app.get("/api/medical-nodes", response_model=List[MedicalNode])
-    def get_medical_nodes():
-        try:
-            # Fetch all rows from the 'medical_nodes' table
-            response = supabase.table('medical_nodes').select("*").execute()
-            return response.data
-        except Exception as e:
-            print(f"❌ Supabase Error: {e}")
-            return [] # Return an empty list if the database fails so the app doesn't crash
+@app.get("/api/medical-nodes", response_model=List[MedicalNode])
+def get_medical_nodes():
+    try:
+        # Fetch all rows from the 'medical_nodes' table
+        response = supabase.table('medical_nodes').select("*").execute()
+        return response.data
+    except Exception as e:
+        print(f"❌ Supabase Error: {e}")
+        return [] # Return an empty list if the database fails so the app doesn't crash
