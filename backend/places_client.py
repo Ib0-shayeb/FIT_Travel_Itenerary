@@ -1,4 +1,5 @@
 import os
+import math
 import httpx
 from typing import List, Dict
 
@@ -32,7 +33,7 @@ class PlacesClient:
 
     async def get_place_recommendations(
         self,
-        city: str
+        city: str, medical_nodes: list
     ) -> List[Dict]:
 
         if not self.api_key:
@@ -49,6 +50,7 @@ class PlacesClient:
 
             async with httpx.AsyncClient() as client:
 
+                # ---> THIS IS WHAT GOT DELETED! <---
                 response = await client.post(
                     self.base_url,
                     headers=self.headers,
@@ -92,16 +94,33 @@ class PlacesClient:
         self,
         city: str,
         raw_places: list
-    ) -> List[Dict]:
+    , medical_nodes: list) -> List[Dict]:
 
         formatted_places = []
+        
+        # --- Helper function to calculate distance & risk ---
+        def get_risk_level(lat, lng):
+            if not medical_nodes: 
+                return "Unknown"
+            
+            # Find distance to closest hospital
+            shortest_dist = min([
+                math.sqrt((lat - node['lat'])**2 + (lng - node['lng'])**2) 
+                for node in medical_nodes
+            ])
+            
+            # Assign risk based on coordinate distance thresholds
+            if shortest_dist < 0.01: return "Low Risk" 
+            if shortest_dist < 0.025: return "Medium Risk"
+            return "High Risk"
 
-        # GOOGLE RESULTS
-
-        for place in raw_places[:5]:
-
+        # --- 1. Process Google's "Popular" Places ---
+        for place in raw_places[:5]: 
+            p_lat = place.get("location", {}).get("latitude", 0.0)
+            p_lng = place.get("location", {}).get("longitude", 0.0)
+            
             formatted_places.append({
-                "placeId": place.get("id"),
+                "id": place.get("id"), 
 
                 "name": place.get(
                     "displayName",
@@ -132,38 +151,17 @@ class PlacesClient:
 
         if city.lower() == "venice":
 
+            gem_lat, gem_lng = 45.4379, 12.3421
             formatted_places.append({
-                "placeId": "v_gem_1",
+                "id": "v_gem_1",
 
                 "name": "Libreria Acqua Alta",
 
                 "category": "Hidden Gem",
-
-                "rating": 4.7,
-
-                "reviewVolume": 8500,
-
-                "lat": 45.4379,
-
-                "lng": 12.3421
+                "riskLevel": get_risk_level(gem_lat, gem_lng), # Added Risk Factor!
+                "coords": { "lat": gem_lat, "lng": gem_lng }
             })
-
-            formatted_places.append({
-                "placeId": "v_gem_2",
-
-                "name": "Scala Contarini del Bovolo",
-
-                "category": "Hidden Gem",
-
-                "rating": 4.6,
-
-                "reviewVolume": 2100,
-
-                "lat": 45.4348,
-
-                "lng": 12.3346
-            })
-
+            
         return formatted_places
 
     # ---------------------------------------------------

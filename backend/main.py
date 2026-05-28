@@ -1,63 +1,71 @@
 import os
 from pydantic import BaseModel
 from typing import List
-from flight_client import FlightClient
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from places_client import PlacesClient
+from typing import List, Optional
 import httpx
+
+from supabase import create_client, Client
 
 # Load the secret keys from the .env file
 load_dotenv()
 
+# --- SUPABASE SETUP ---
+# Ensure these two variables are in your .env file!
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    print("⚠️ WARNING: Supabase URL or Key missing. Database calls will fail.")
+
+# 1. Your External API Clients
+from flight_client import FlightClient
+from places_client import PlacesClient
+
+# 2. ---> IMPORT FROM YOUR NEW ALGORITHM FILE <---
+from route_optimizer import (
+    SafeMedicalOptimizer, 
+    OptimizeRequest, 
+    OptimizeResponse,
+    Coordinate,
+    MedicalNode
+)
+
 # ==========================================
-# 1. STARTUP HEALTH CHECK (DUFFEL API)
+# STARTUP HEALTH CHECK 
 
 # ==========================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Booting up server... Running health checks.")
     
-    # Securely grab the API key
     duffel_api_key = os.getenv("DUFFEL_API_KEY")
-    
     if not duffel_api_key:
         print("❌ ERROR: DUFFEL_API_KEY is missing from the .env file!")
     else:
-        # Test query: Ask Duffel for a list of airlines, limited to 1 just to prove auth works
         test_api_url = "https://api.duffel.com/air/airlines?limit=1"
-        
-        # Duffel requires these exact headers
         headers = {
             "Authorization": f"Bearer {duffel_api_key}",
             "Duffel-Version": "v2",
             "Accept": "application/json"
         } 
-        
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(test_api_url, headers=headers, timeout=5.0)
-                
                 if response.status_code == 200:
                     data = response.json()
-                    # Grab the airline name from the response to prove it worked
                     airline_name = data.get("data", [{}])[0].get("name", "Unknown")
                     print(f"✅ Duffel API is ONLINE. Test Query Successful (Found: {airline_name})")
-                elif response.status_code == 401:
-                    print("❌ ERROR: Duffel API rejected our key! Check your .env file.")
                 else:
                     print(f"⚠️ Warning: Duffel API returned status {response.status_code}")
-                    print(f"🔍 Duffel Error Message: {response.text}")
-                    
         except Exception as e:
              print(f"❌ ERROR: Duffel API is unreachable! Details: {e}")
 
-    yield 
-    print("🛑 Server shutting down.")
-
-    # --- GOOGLE PLACES HEALTH CHECK ---
     google_api_key = os.getenv("GOOGLE_PLACES_API_KEY")
     if not google_api_key:
         print("❌ ERROR: GOOGLE_PLACES_API_KEY is missing from the .env file!")
@@ -68,7 +76,6 @@ async def lifespan(app: FastAPI):
             "X-Goog-FieldMask": "places.displayName.text",
             "Content-Type": "application/json"
         }
-        # We just ask for 1 place to prove the key works
         try:
             async with httpx.AsyncClient() as client:
                 g_res = await client.post(test_google_url, headers=google_headers, json={"textQuery": "Eiffel Tower"}, timeout=5.0)
@@ -79,8 +86,11 @@ async def lifespan(app: FastAPI):
         except Exception as e:
                 print(f"❌ ERROR: Google API is unreachable! Details: {e}")
 
+    yield 
+    print("🛑 Server shutting down.")
+
 # ==========================================
-# 2. FASTAPI SETUP
+# FASTAPI SETUP
 # ==========================================
 app = FastAPI(title="Trip Planner API", lifespan=lifespan)
 client = PlacesClient()
@@ -91,54 +101,59 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ... (Keep all your existing @app.get and @app.post routes below here)
-
-# --- ORIGINAL ENDPOINTS ---
+# ==========================================
+# API ENDPOINTS
+# ==========================================
 
 @app.post("/api/nuances")
 def get_mock_nuances(request_data: dict):
-    # Extract the list of places the frontend sent
     places_visited = request_data.get("selectedPlaces", [])
-    
-    # Create a dynamic mock response based on what they sent
     dynamic_tips = []
     
     for place in places_visited:
         name = place.get("name", "Unknown Place")
         dynamic_tips.append({
-            "category": "Attraction Specific",
-            "tip": f"Mock Rule: Remember to check the specific dress code and entry requirements for {name}."
+            "category": "Medical/Emergency",
+            "tip": f"Keep your medical ID accessible while visiting {name}. Nearest emergency exit is marked in green."
         })
     
-    # Add some general transport rules that always apply
     dynamic_tips.append(
-        {"category": "Transport", "tip": "Validate paper tickets upon boarding the Vaporetto."}
+        {"category": "Medical/Emergency", "tip": "Emergency Number in Italy is 112. Show your medical ID card if needed."}
     )
 
-    return {
-        "cheatSheet": dynamic_tips
-    }
+    return {"cheatSheet": dynamic_tips}
 
-@app.post("/api/trips/optimize")
-def optimize_mock_trip(request_data: dict):
-    hotel_name = request_data.get("hotelStartingPoint", {}).get("name", "Hotel")
-    return {
-        "tripId": "fake_trip_123",
-        "dailyRoutes": [
-            {
-                "dayNumber": 1,
-                "totalTimeMinutes": 320,
-                "route": [
-                    {"step": 1, "name": hotel_name, "isHotel": True},
-                    {"step": 2, "name": "Mock Output: St. Mark's Basilica", "travelToNextMins": 25},
-                    {"step": 3, "name": "Mock Output: Rialto Bridge", "travelToNextMins": 15},
-                    {"step": 4, "name": hotel_name, "isHotel": True}
-                ]
-            }
-        ]
-    }
+@app.post("/api/trips/optimize", response_model=OptimizeResponse)
+def optimize_trip(request_data: OptimizeRequest):
+    
+    # 1. Fetch live Medical Nodes from Supabase
+    try:
+        db_response = supabase.table('medical_nodes').select("*").execute()
+        live_medical_nodes = db_response.data
+    except Exception as e:
+        print(f"❌ Supabase Error during optimization: {e}")
+        live_medical_nodes = [] # Fallback to empty if DB fails
+    
+    # 2. Extract just the coordinates for the math algorithm
+    medical_coords = [
+        Coordinate(lat=node['lat'], lng=node['lng']) for node in live_medical_nodes
+    ]
+    
+    # 3. Instantiate your Strategy Pattern class
+    optimizer = SafeMedicalOptimizer()
+    
+    # 4. Pass the live database coordinates into the algorithm!
+    final_response = optimizer.calculate_route(
+        trip_duration_days=request_data.days,
+        hotel=request_data.hotel,
+        places=request_data.places,
+        medical_nodes=medical_coords # Using live data here
+    )
 
-# --- NEW RECOMMENDATION ENDPOINTS ---
+    return final_response
+
+
+# --- RECOMMENDATION ENDPOINTS ---
 
 @app.post("/api/recommendations/places")
 async def get_recommended_places(request_data: dict):
@@ -181,14 +196,13 @@ async def get_recommended_places(request_data: dict):
     }
 @app.get("/api/recommendations/flights")
 async def get_recommended_flights(
-    origin: str = "LHR",          # Default to London
-    destination: str = "VCE",     # Default to Venice
-    date: str = "2026-08-15",     # Use a future YYYY-MM-DD date
+    origin: str = "LHR",          
+    destination: str = "VCE",     
+    date: str = "2026-08-15",     
     adults: int = 1,
     children: int = 0
 ):
     client = FlightClient()
-    
     live_flights = await client.get_flight_recommendations(
         origin_code=origin,
         destination_code=destination,
@@ -196,7 +210,6 @@ async def get_recommended_flights(
         adults=adults,
         children=children
     )
-    
     return {
         "search_parameters": {
             "origin": origin,
@@ -243,3 +256,13 @@ async def optimize_route(data: RouteRequest):
     return {
         "optimized_route": data.selected_places
     }
+
+@app.get("/api/medical-nodes", response_model=List[MedicalNode])
+def get_medical_nodes():
+    try:
+        # Fetch all rows from the 'medical_nodes' table
+        response = supabase.table('medical_nodes').select("*").execute()
+        return response.data
+    except Exception as e:
+        print(f"❌ Supabase Error: {e}")
+        return [] # Return an empty list if the database fails so the app doesn't crash
