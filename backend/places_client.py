@@ -6,21 +6,19 @@ from typing import List, Dict
 class PlacesClient:
     def __init__(self):
         self.api_key = os.getenv("GOOGLE_PLACES_API_KEY")
-        # We are using the modern Google Places (New) API
         self.base_url = "https://places.googleapis.com/v1/places:searchText"
         
-        # Google REQUIRES you to specify exactly which fields you want back to save bandwidth
         self.headers = {
             "X-Goog-Api-Key": f"{self.api_key}",
             "X-Goog-FieldMask": "places.id,places.displayName.text,places.rating,places.userRatingCount,places.location",
             "Content-Type": "application/json"
         }
 
-    async def get_place_recommendations(self, city: str, medical_nodes: list) -> List[Dict]:
+    # Added hidden_gems to the expected inputs!
+    async def get_place_recommendations(self, city: str, medical_nodes: list, hidden_gems: list) -> List[Dict]:
         if not self.api_key:
             return [{"error": "Google API Key missing"}]
 
-        # 1. Ask Google for the most popular tourist attractions in the city
         payload = {
             "textQuery": f"top tourist attractions in {city}",
             "languageCode": "en"
@@ -30,7 +28,6 @@ class PlacesClient:
 
         try:
             async with httpx.AsyncClient() as client:
-                # ---> THIS IS WHAT GOT DELETED! <---
                 response = await client.post(
                     self.base_url,
                     headers=self.headers,
@@ -45,28 +42,25 @@ class PlacesClient:
                 data = response.json()
                 raw_places = data.get("places", [])
                 
-                # 2. Format Google's data, mix in our custom Hidden Gems, and calculate RISK!
-                return self._format_and_mix_places(city, raw_places, medical_nodes)
+                # Pass the gems down to the formatter
+                return self._format_and_mix_places(city, raw_places, medical_nodes, hidden_gems)
 
         except Exception as e:
             print(f"❌ Network Error: {e}")
             return [{"error": "Failed to connect to Google API"}]
 
-    def _format_and_mix_places(self, city: str, raw_places: list, medical_nodes: list) -> List[Dict]:
+    def _format_and_mix_places(self, city: str, raw_places: list, medical_nodes: list, hidden_gems: list) -> List[Dict]:
         formatted_places = []
         
-        # --- Helper function to calculate distance & risk ---
         def get_risk_level(lat, lng):
             if not medical_nodes: 
                 return "Unknown"
             
-            # Find distance to closest hospital
             shortest_dist = min([
                 math.sqrt((lat - node['lat'])**2 + (lng - node['lng'])**2) 
                 for node in medical_nodes
             ])
             
-            # Assign risk based on coordinate distance thresholds
             if shortest_dist < 0.01: return "Low Risk" 
             if shortest_dist < 0.025: return "Medium Risk"
             return "High Risk"
@@ -80,21 +74,23 @@ class PlacesClient:
                 "id": place.get("id"), 
                 "name": place.get("displayName", {}).get("text", "Unknown"),
                 "category": "Popular",
-                "riskLevel": get_risk_level(p_lat, p_lng), # Added Risk Factor!
+                "riskLevel": get_risk_level(p_lat, p_lng), 
                 "coords": { 
                     "lat": p_lat,
                     "lng": p_lng
                 }
             })
 
-        # --- 2. Inject our "Hidden Gems" ---
-        if city.lower() == "venice":
-            gem_lat, gem_lng = 45.4379, 12.3421
+        # --- 2. Inject our "Hidden Gems" from Supabase ---
+        for gem in hidden_gems:
+            gem_lat = gem.get("latitude", 0.0)
+            gem_lng = gem.get("longitude", 0.0)
+            
             formatted_places.append({
-                "id": "v_gem_1",
-                "name": "Libreria Acqua Alta",
+                "id": str(gem.get("id")), # Convert to string to ensure consistency with Google IDs
+                "name": gem.get("name", "Unknown Gem"),
                 "category": "Hidden Gem",
-                "riskLevel": get_risk_level(gem_lat, gem_lng), # Added Risk Factor!
+                "riskLevel": get_risk_level(gem_lat, gem_lng), 
                 "coords": { "lat": gem_lat, "lng": gem_lng }
             })
             
