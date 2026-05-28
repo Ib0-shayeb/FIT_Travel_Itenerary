@@ -74,9 +74,10 @@ class PlacesClient:
                 raw_places = data.get("places", [])
 
                 return self._format_and_mix_places(
-                    city,
-                    raw_places
-                )
+                     city,
+                     raw_places,
+                      medical_nodes
+                     )
 
         except Exception as e:
 
@@ -135,16 +136,10 @@ class PlacesClient:
                     "userRatingCount",
                     0
                 ),
+                 "riskLevel": get_risk_level(p_lat, p_lng),
 
-                "lat": place.get(
-                    "location",
-                    {}
-                ).get("latitude", 0.0),
-
-                "lng": place.get(
-                    "location",
-                    {}
-                ).get("longitude", 0.0)
+                  "lat": p_lat,
+                 "lng": p_lng
             })
 
         # HIDDEN GEMS
@@ -158,8 +153,11 @@ class PlacesClient:
                 "name": "Libreria Acqua Alta",
 
                 "category": "Hidden Gem",
+                "rating": 4.8,
+                "reviewVolume": 120,
                 "riskLevel": get_risk_level(gem_lat, gem_lng), # Added Risk Factor!
-                "coords": { "lat": gem_lat, "lng": gem_lng }
+                "lat": gem_lat,
+                "lng": gem_lng,
             })
             
         return formatted_places
