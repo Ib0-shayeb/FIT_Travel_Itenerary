@@ -1,4 +1,6 @@
 import os
+from pydantic import BaseModel
+from typing import List
 from flight_client import FlightClient
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -12,6 +14,7 @@ load_dotenv()
 
 # ==========================================
 # 1. STARTUP HEALTH CHECK (DUFFEL API)
+
 # ==========================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,7 +83,7 @@ async def lifespan(app: FastAPI):
 # 2. FASTAPI SETUP
 # ==========================================
 app = FastAPI(title="Trip Planner API", lifespan=lifespan)
-
+client = PlacesClient()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -137,17 +140,45 @@ def optimize_mock_trip(request_data: dict):
 
 # --- NEW RECOMMENDATION ENDPOINTS ---
 
-@app.get("/api/recommendations/places")
-async def get_recommended_places(city: str = "Venice"):
-    client = PlacesClient()
+@app.post("/api/recommendations/places")
+async def get_recommended_places(request_data: dict):
 
-    live_places = await client.get_place_recommendations(city)
+    interests = request_data.get("interests", [])
+    preferences = request_data.get("preferences", {})
+
+    print("INTERESTS:", interests)
+    print("PREFERENCES:", preferences)
+
+ 
+
+    search_query = "tourist attractions in Venice"
+
+    if "Food" in interests:
+        search_query = "best restaurants in Venice"
+
+    elif "History" in interests:
+        search_query = "historical places in Venice"
+
+    elif "Art" in interests:
+        search_query = "art museums in Venice"
+
+    elif "Nature" in interests:
+        search_query = "parks and nature in Venice"
+
+    elif "Shopping" in interests:
+        search_query = "shopping centers in Venice"
+
+    elif "Nightlife" in interests:
+        search_query = "nightlife bars in Venice"
+
+    print("SEARCH QUERY:", search_query)
+
+    live_places = await client.get_place_recommendations(search_query)
 
     return {
-        "city": city,
+        "city": "Venice",
         "places": live_places
     }
-
 @app.get("/api/recommendations/flights")
 async def get_recommended_flights(
     origin: str = "LHR",          # Default to London
@@ -177,29 +208,38 @@ async def get_recommended_flights(
     }
 
 @app.get("/api/recommendations/hotels")
-def get_recommended_hotels():
+async def get_hotels(query: str = ""):
+
+    hotels = await client.search_hotels(query)
+     
+     
+     
+    print("HOTELS FOUND:", hotels)
+
     return {
-        "destination": "Venice",
-        "hotels": [
-            {
-                "hotelId": "hot_111",
-                "name": "Hotel Danieli",
-                "pricePerNight": "€450",
-                "lat": 45.4337,
-                "lng": 12.3421,
-                "verifiedLodgingScore": 9.5,
-                "safetyStatus": "Verified Safe Area",
-                "externalBookingLink": "https://www.booking.com/hotel/it/danieli-venice.html"
-            },
-            {
-                "hotelId": "hot_222",
-                "name": "Belmond Hotel Cipriani",
-                "pricePerNight": "€800",
-                "lat": 45.4239,
-                "lng": 12.3384,
-                "verifiedLodgingScore": 9.8,
-                "safetyStatus": "Verified Safe Area",
-                "externalBookingLink": "https://www.booking.com/hotel/it/belmond-cipriani.html"
-            }
-        ]
+        "hotels": hotels
+    }
+from pydantic import BaseModel
+from typing import List
+
+
+class Place(BaseModel):
+    placeId: str
+    name: str
+    lat: float
+    lng: float
+
+
+class RouteRequest(BaseModel):
+    selected_places: List[Place]
+
+
+@app.post("/optimize-route")
+async def optimize_route(data: RouteRequest):
+
+    print("ROUTE REQUEST:")
+    print(data)
+
+    return {
+        "optimized_route": data.selected_places
     }
