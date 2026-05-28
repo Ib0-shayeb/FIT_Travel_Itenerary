@@ -131,20 +131,27 @@ def optimize_trip(request_data: OptimizeRequest):
         print(f"❌ Supabase Error during optimization: {e}")
         live_medical_nodes = [] # Fallback to empty if DB fails
     
-    # 2. Extract just the coordinates for the math algorithm
-    medical_coords = [
-        Coordinate(lat=node['lat'], lng=node['lng']) for node in live_medical_nodes
+    # 2. Extract full MedicalNode models for the math algorithm
+    medical_models = [
+        MedicalNode(
+            id=str(node.get('id', '')), 
+            name=node.get('name', 'Unknown Medical Node'), 
+            facility_type=node.get('facility_type', 'Hospital'),
+            lat=node.get('lat', 0.0), 
+            lng=node.get('lng', 0.0), 
+            is_24_7=node.get('is_24_7', True), 
+            local_phone=node.get('local_phone', ''), 
+            emergency_dispatch=node.get('emergency_dispatch', '112')
+        ) for node in live_medical_nodes
     ]
     
-    # 3. Instantiate your Strategy Pattern class
     optimizer = SafeMedicalOptimizer()
     
-    # 4. Pass the live database coordinates into the algorithm!
     final_response = optimizer.calculate_route(
         trip_duration_days=request_data.days,
         hotel=request_data.hotel,
         places=request_data.places,
-        medical_nodes=medical_coords # Using live data here
+        medical_nodes=medical_models # <-- Pass the new models here!
     )
 
     return final_response

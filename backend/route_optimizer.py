@@ -31,7 +31,6 @@ class OptimizeRequest(BaseModel):
     days: int
     hotel: Place
     places: List[Place]
-
     class Config:
         json_schema_extra = {
             "example": {
@@ -39,24 +38,33 @@ class OptimizeRequest(BaseModel):
                 "hotel": {
                     "id": "hot_111",
                     "name": "Hotel Danieli",
-                    "coords": {"lat": 45.4337, "lng": 12.3421},
+                    "coords": {
+                    "lat": 45.4337,
+                    "lng": 12.3421
+                    },
                     "durationMins": 0
                 },
                 "places": [
                     {
-                        "id": "pl_1",
-                        "name": "St. Mark's Basilica",
-                        "coords": {"lat": 45.4346, "lng": 12.3397},
-                        "durationMins": 60
+                    "id": "ChIJiYRBbtexfkcR0XTK3ATSCbg",
+                    "name": "Doge's Palace",
+                    "coords": {
+                        "lat": 45.4337035,
+                        "lng": 12.3403894
+                    },
+                    "durationMins": 45
                     },
                     {
-                        "id": "pl_2",
-                        "name": "Rialto Bridge",
-                        "coords": {"lat": 45.4381, "lng": 12.3358},
-                        "durationMins": 45
+                    "id": "10",
+                    "name": "Forte di Sant'Andrea",
+                    "coords": {
+                        "lat": 45.4346,
+                        "lng": 12.3811
+                    },
+                    "durationMins": 60
                     }
                 ]
-            }
+                }
         }
 
 class RouteStep(BaseModel):
@@ -64,9 +72,8 @@ class RouteStep(BaseModel):
     name: str
     coords: Coordinate
     isHotel: bool
+    isSafetyNode: bool = False # <-- NEW: Flag for your frontend map icons!
     travelToNextMins: Optional[int] = None
-    # NEW: The Micro-Routing Safety Waypoints!
-    safetyWaypoints: Optional[List[Coordinate]] = [] 
 
 class DailyRoute(BaseModel):
     dayNumber: int
@@ -82,11 +89,12 @@ class OptimizeResponse(BaseModel):
 # ==========================================
 class IRouteOptimizer(ABC):
     @abstractmethod
-    def calculate_route(self, trip_duration_days: int, hotel: Place, places: List[Place], medical_nodes: List[Coordinate]) -> OptimizeResponse:
+    # Notice this now expects List[MedicalNode] instead of List[Coordinate]
+    def calculate_route(self, trip_duration_days: int, hotel: Place, places: List[Place], medical_nodes: List[MedicalNode]) -> OptimizeResponse:
         pass
 
 # ==========================================
-# 3. THE IMPLEMENTATION (Waypoint Injection)
+# 3. THE IMPLEMENTATION (Inline Injection)
 # ==========================================
 class SafeMedicalOptimizer(IRouteOptimizer):
 
@@ -99,14 +107,14 @@ class SafeMedicalOptimizer(IRouteOptimizer):
             lng=(coord1.lng + coord2.lng) / 2
         )
         
-    def _is_high_risk(self, coord: Coordinate, medical_nodes: List[Coordinate]) -> bool:
+    def _is_high_risk(self, coord: Coordinate, medical_nodes: List[MedicalNode]) -> bool:
         if not medical_nodes: 
             return False
-        # Matches the 0.025 threshold from your places_client.py
-        shortest_dist = min([self._calculate_distance(coord, m) for m in medical_nodes])
+        # Compare coordinate to the medical node's lat/lng
+        shortest_dist = min([math.sqrt((coord.lat - n.lat)**2 + (coord.lng - n.lng)**2) for n in medical_nodes])
         return shortest_dist >= 0.025
 
-    def calculate_route(self, trip_duration_days: int, hotel: Place, places: List[Place], medical_nodes: List[Coordinate]) -> OptimizeResponse:
+    def calculate_route(self, trip_duration_days: int, hotel: Place, places: List[Place], medical_nodes: List[MedicalNode]) -> OptimizeResponse:
         daily_clusters = [places] 
         final_routes = []
         
@@ -115,60 +123,67 @@ class SafeMedicalOptimizer(IRouteOptimizer):
             current_location = hotel.coords
             ordered_route = []
             
-            # --- 1. MACRO-ROUTING (Pure Shortest Path) ---
+            # --- 1. MACRO-ROUTING (Find Order) ---
             while unvisited:
                 best_place = None
                 best_score = float('inf')
-                
                 for place in unvisited:
-                    # No more hidden penalties. Just find the closest logical next stop!
                     dist_to_place = self._calculate_distance(current_location, place.coords)
-                    
                     if dist_to_place < best_score:
                         best_score = dist_to_place
                         best_place = place
-                        
                 ordered_route.append(best_place)
                 current_location = best_place.coords
                 unvisited.remove(best_place)
 
-            # --- 2. MICRO-ROUTING (Waypoint Injection) ---
+            # --- 2. MICRO-ROUTING (Inline Waypoint Injection) ---
             route_steps = []
-            route_steps.append(RouteStep(step=1, name=hotel.name, coords=hotel.coords, isHotel=True, travelToNextMins=15))
+            step_counter = 1 # We use a counter now so the step numbers stay sequential!
+            
+            route_steps.append(RouteStep(step=step_counter, name=hotel.name, coords=hotel.coords, isHotel=True, travelToNextMins=15))
+            step_counter += 1
             
             prev_location = hotel.coords
-            for i, place in enumerate(ordered_route):
+            for place in ordered_route:
                 
-                waypoints = []
-                
-                # Check if either Point A (prev) or Point B (curr) is High Risk
+                # Check for High Risk jump
                 if self._is_high_risk(prev_location, medical_nodes) or self._is_high_risk(place.coords, medical_nodes):
                     if medical_nodes:
                         midpoint = self._get_midpoint(prev_location, place.coords)
                         
-                        # Find the absolute closest hospital to the midpoint
-                        closest_node = min(medical_nodes, key=lambda n: self._calculate_distance(midpoint, n))
+                        # Find closest hospital
+                        closest_node = min(medical_nodes, key=lambda n: math.sqrt((midpoint.lat - n.lat)**2 + (midpoint.lng - n.lng)**2))
                         
-                        # Your brilliant Sanity Check Math:
                         dist_a_to_b = self._calculate_distance(prev_location, place.coords)
-                        dist_a_to_node = self._calculate_distance(prev_location, closest_node)
-                        dist_node_to_b = self._calculate_distance(closest_node, place.coords)
+                        dist_a_to_node = math.sqrt((prev_location.lat - closest_node.lat)**2 + (prev_location.lng - closest_node.lng)**2)
+                        dist_node_to_b = math.sqrt((closest_node.lat - place.coords.lat)**2 + (closest_node.lng - place.coords.lng)**2)
                         
-                        # Only inject it if it doesn't force them to walk away from their destination!
+                        # Sanity check
                         if dist_a_to_node <= dist_a_to_b and dist_node_to_b <= dist_a_to_b:
-                            waypoints.append(closest_node)
+                            
+                            # ---> INJECT HOSPITAL AS A FULL ROUTE STEP! <---
+                            route_steps.append(RouteStep(
+                                step=step_counter, 
+                                name=f"Safety Checkpoint: {closest_node.name}", 
+                                coords=Coordinate(lat=closest_node.lat, lng=closest_node.lng), 
+                                isHotel=False, 
+                                isSafetyNode=True, 
+                                travelToNextMins=5
+                            ))
+                            step_counter += 1
 
+                # Add the actual tourist destination
                 route_steps.append(RouteStep(
-                    step=i + 2, 
+                    step=step_counter, 
                     name=place.name, 
                     coords=place.coords, 
                     isHotel=False, 
-                    travelToNextMins=10, 
-                    safetyWaypoints=waypoints # Injected!
+                    travelToNextMins=10
                 ))
+                step_counter += 1
                 prev_location = place.coords
                 
-            route_steps.append(RouteStep(step=len(ordered_route) + 2, name=hotel.name, coords=hotel.coords, isHotel=True))
+            route_steps.append(RouteStep(step=step_counter, name=hotel.name, coords=hotel.coords, isHotel=True))
             
             final_routes.append(DailyRoute(dayNumber=day_index + 1, totalTimeMinutes=320, route=route_steps))
 
