@@ -154,8 +154,19 @@ def optimize_trip(request_data: OptimizeRequest):
 
 @app.get("/api/recommendations/places")
 async def get_recommended_places(city: str = "Venice"):
+    # 1. Fetch live Medical Nodes to calculate risk
+    try:
+        db_response = supabase.table('medical_nodes').select("*").execute()
+        live_medical_nodes = db_response.data
+    except Exception as e:
+        print(f"❌ Supabase Error: {e}")
+        live_medical_nodes = []
+        
     client = PlacesClient()
-    live_places = await client.get_place_recommendations(city)
+    
+    # 2. Pass the medical nodes into the client
+    live_places = await client.get_place_recommendations(city, live_medical_nodes)
+    
     return {
         "city": city,
         "places": live_places
