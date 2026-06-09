@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import MapView from "../components/MapView";
 
+
 export default function Results({
   setPage,
   places,
@@ -66,17 +67,24 @@ const searchHotels = async (query) => {
 
 
   console.log("RESULTS:", places);
+  places.forEach((p) => {
+  console.log("PLACE ID:", p.id, p.name);
+});
 
   const togglePlaceSelection = (place) => {
 
+  console.log("CLICKED PLACE:", place);
+  console.log("SELECTED BEFORE:", selectedPlaces);
+
+
     const exists = selectedPlaces.some(
-      (p) => p.placeId === place.placeId
+      (p) => p.id === place.id
     );
 
     if (exists) {
       setSelectedPlaces(
         selectedPlaces.filter(
-          (p) => p.placeId !== place.placeId
+          (p) => p.id !== place.id
         )
       );
     } else {
@@ -85,25 +93,34 @@ const searchHotels = async (query) => {
   };
 const handleBuildRoute = async () => {
   try {
+
+    const buildBody = {
+      days: Number(duration),
+      hotel: selectedHotel,
+      places: selectedPlaces,
+    };
+
+     console.log(
+      "BUILD BODY:",
+      JSON.stringify(buildBody, null, 2)
+    );
+
     const response = await fetch(
-     "http://127.0.0.1:8000/api/trips/optimize",
+      "http://127.0.0.1:8000/api/trips/optimize",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-    body: JSON.stringify({
-    selected_places: selectedPlaces,
-    hotelStartingPoint: selectedHotel,
-     }),
+        body: JSON.stringify(buildBody),
       }
     );
 
-    const data = await response.json();
-    console.log("HOTELS API RESPONSE:", data);
+    console.log("STATUS:", response.status);
 
-setHotels(Array.isArray(data) ? data : []);
-    console.log(data);
+    const data = await response.json();
+
+    console.log("OPTIMIZE RESPONSE:", data);
 
     setOptimizedRoute(data.dailyRoutes || []);
 
@@ -111,7 +128,6 @@ setHotels(Array.isArray(data) ? data : []);
     console.error("Route optimization failed:", error);
   }
 };
-
   const mockTimes = [
     "09:00",
     "10:30",
@@ -233,13 +249,13 @@ setHotels(Array.isArray(data) ? data : []);
             {places.map((place, index) => {
 
               const isSelected = selectedPlaces.some(
-                (p) => p.placeId === place.placeId
+                (p) => p.id === place.id
               );
 
               return (
 
                 <div
-                  key={place.placeId}
+                  key={place.id}
                   className={`rounded-2xl p-4 shadow-md hover:shadow-xl transition border-2 ${
                     isSelected
                       ? "bg-green-50 border-green-400"
@@ -350,7 +366,7 @@ onChange={(e) => {
     {hotelResults.map((hotel) => (
 
       <button
-        key={hotel.placeId}
+        key={hotel.id}
 
        onClick={() => {
 
@@ -430,7 +446,7 @@ onChange={(e) => {
         {selectedPlaces.map((place) => (
 
           <div
-            key={place.placeId}
+            key={place.id}
             className="bg-sky-100 text-sky-700 px-4 py-2 rounded-full"
           >
             {place.name}

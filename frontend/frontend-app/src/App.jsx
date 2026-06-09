@@ -47,9 +47,12 @@ function App() {
 
           places={places}
 
+          
+
           interests={interests}
 
           preferences={preferences}
+          duration={duration}
 
           selectedPlaces={selectedPlaces}
           setSelectedPlaces={setSelectedPlaces}

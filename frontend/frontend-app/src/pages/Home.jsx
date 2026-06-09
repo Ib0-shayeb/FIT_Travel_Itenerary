@@ -27,8 +27,9 @@ const togglePreference = (key) => {
 }
 const handleSubmit = async (e) => {
   e.preventDefault();
-
+    console.log("FORM SUBMITTED");
   try {
+     console.log("BEFORE FETCH");
     const response = await fetch(
   "http://127.0.0.1:8000/api/recommendations/places",
   {
@@ -44,6 +45,7 @@ const handleSubmit = async (e) => {
     }),
   }
 );
+ console.log("AFTER FETCH");
   const result = await response.json();
 
 console.log("RESULT:", result);
@@ -136,6 +138,7 @@ setPlaces(result.places);
     ].map((item) => (
 
       <button
+       type="button"
         key={item.key}
         onClick={() => togglePreference(item.key)}
         className={`
