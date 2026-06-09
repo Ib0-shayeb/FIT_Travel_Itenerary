@@ -92,6 +92,8 @@ const searchHotels = async (query) => {
     }
   };
 const handleBuildRoute = async () => {
+  console.log("RESULTS selectedHotel:", selectedHotel);
+  console.log("RESULTS selectedPlaces:", selectedPlaces);
   try {
 
     const buildBody = {
