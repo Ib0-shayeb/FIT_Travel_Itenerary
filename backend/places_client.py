@@ -210,7 +210,7 @@ class PlacesClient:
 
                     hotels.append({
 
-                        "placeId": place.get("id"),
+                        "id": place.get("id"),
 
                         "name": place.get(
                             "displayName",

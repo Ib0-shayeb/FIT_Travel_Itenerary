@@ -7,7 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from typing import List, Optional
 import httpx
-
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from supabase import create_client, Client
 
 # Load the secret keys from the .env file
@@ -80,23 +82,36 @@ async def lifespan(app: FastAPI):
             async with httpx.AsyncClient() as client:
                 g_res = await client.post(test_google_url, headers=google_headers, json={"textQuery": "Eiffel Tower"}, timeout=5.0)
                 if g_res.status_code == 200:
-                    print("✅ Google Places API is ONLINE.")
+                    print(" Google Places API is ONLINE.")
                 else:
-                    print(f"❌ Google API rejected our key! Status: {g_res.status_code}")
+                    print(f" Google API rejected our key! Status: {g_res.status_code}")
         except Exception as e:
-                print(f"❌ ERROR: Google API is unreachable! Details: {e}")
+                print(f" ERROR: Google API is unreachable! Details: {e}")
 
     yield 
-    print("🛑 Server shutting down.")
+    print(" Server shutting down.")
 
 # ==========================================
 # FASTAPI SETUP
 # ==========================================
 app = FastAPI(title="Trip Planner API", lifespan=lifespan)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+):
+    print("VALIDATION ERROR:")
+    print(exc.errors())
+
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 client = PlacesClient()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -125,32 +140,31 @@ def get_mock_nuances(request_data: dict):
 
 @app.post("/api/trips/optimize", response_model=OptimizeResponse)
 def optimize_trip(request_data: OptimizeRequest):
-    
-    # 1. Fetch live Medical Nodes from Supabase
+    print(request_data)
+
     try:
         db_response = supabase.table('medical_nodes').select("*").execute()
         live_medical_nodes = db_response.data
     except Exception as e:
         print(f"❌ Supabase Error during optimization: {e}")
-        live_medical_nodes = [] # Fallback to empty if DB fails
-    
-    # 2. Extract just the coordinates for the math algorithm
+        live_medical_nodes = []
+
     medical_coords = [
-        Coordinate(lat=node['lat'], lng=node['lng']) for node in live_medical_nodes
+        Coordinate(lat=node['lat'], lng=node['lng'])
+        for node in live_medical_nodes
     ]
-    
-    # 3. Instantiate your Strategy Pattern class
+
     optimizer = SafeMedicalOptimizer()
-    
-    # 4. Pass the live database coordinates into the algorithm!
+
     final_response = optimizer.calculate_route(
         trip_duration_days=request_data.days,
         hotel=request_data.hotel,
         places=request_data.places,
-        medical_nodes=medical_coords # Using live data here
+        medical_nodes=medical_coords
     )
 
     return final_response
+
 
 
 # --- RECOMMENDATION ENDPOINTS ---
@@ -161,10 +175,12 @@ async def get_recommended_places(request_data: dict):
     interests = request_data.get("interests", [])
     preferences = request_data.get("preferences", {})
 
+    print("USER PREFERENCES:", preferences)
+
     print("INTERESTS:", interests)
     print("PREFERENCES:", preferences)
 
- 
+
 
     search_query = "tourist attractions in Venice"
 
@@ -188,11 +204,40 @@ async def get_recommended_places(request_data: dict):
 
     print("SEARCH QUERY:", search_query)
 
-    live_places = await client.get_place_recommendations(search_query)
+    live_medical_nodes = []
+
+    live_places = await client.get_place_recommendations(
+        search_query,
+        live_medical_nodes
+    )
+
+    filtered_places = live_places
+
+    if preferences.get("asthmaFriendly"):
+
+        filtered_places = [
+            place for place in filtered_places
+             if "bar" not in place.get("name", "").lower()
+        ]
+
+    if preferences.get("lowWalking"):
+
+        filtered_places = filtered_places[:3]
+
+    if preferences.get("avoidCrowds"):
+
+        filtered_places = [
+            place for place in filtered_places
+            if place.get("reviewVolume", 0) < 5000
+        ]
+
+    if preferences.get("elderlyFriendly"):
+
+        filtered_places = filtered_places[:4]
 
     return {
         "city": "Venice",
-        "places": live_places
+        "places": filtered_places
     }
 @app.get("/api/recommendations/flights")
 async def get_recommended_flights(
@@ -237,7 +282,7 @@ from typing import List
 
 
 class Place(BaseModel):
-    placeId: str
+    id: str
     name: str
     lat: float
     lng: float
@@ -266,3 +311,4 @@ def get_medical_nodes():
     except Exception as e:
         print(f"❌ Supabase Error: {e}")
         return [] # Return an empty list if the database fails so the app doesn't crash
+    live_medical_nodes =  get_medical_nodes()

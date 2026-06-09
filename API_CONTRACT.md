@@ -9,20 +9,20 @@ Calculates the optimal daily schedule based on selected places using K-Means clu
 ```json
 {
   "tripDurationDays": 3,
-  "hotelStartingPoint": {
-    "placeId": "hotel_123",
+  "hotel": {
+    "id": "hotel_123",
     "name": "Marriott Warsaw",
     "lat": 52.2285, "lng": 21.0034
   },
   "selectedPlaces": [
     {
-      "placeId": "museum_456",
+      "id": "museum_456",
       "name": "National Museum",
       "lat": 52.2317, "lng": 21.0245,
       "durationMinutes": 90 
     },
     {
-      "placeId": "park_789",
+      "id": "park_789",
       "name": "Lazienki Park",
       "lat": 52.2150, "lng": 21.0353,
       "durationMinutes": 120 
@@ -63,13 +63,13 @@ Fetches popular spots and hidden gems for a specific city.
   "city": "Warsaw",
   "places": [
     {
-      "placeId": "castle_111",
+      "id": "castle_111",
       "name": "Royal Castle",
       "category": "Popular",
       "lat": 52.2479, "lng": 21.0142
     },
     {
-      "placeId": "gem_222",
+      "id": "gem_222",
       "name": "Neon Museum",
       "category": "Hidden Gem",
       "lat": 52.2486, "lng": 21.0478
@@ -90,12 +90,12 @@ Fetches specific local rules and nuances based on the exact places the user plan
 {
   "selectedPlaces": [
     {
-      "placeId": "v_pop_1",
+      "id": "v_pop_1",
       "name": "St. Mark's Basilica",
       "category": "Popular"
     },
     {
-      "placeId": "v_gem_1",
+      "id": "v_gem_1",
       "name": "Libreria Acqua Alta",
       "category": "Hidden Gem"
     }
@@ -134,7 +134,7 @@ Returns a mix of Google API popular spots and hard-coded hidden gems.
   "city": "Venice",
   "places": [
     {
-      "placeId": "v_pop_1",
+      "id": "v_pop_1",
       "name": "St. Mark's Basilica",
       "category": "Popular",
       "rating": 4.8,
@@ -143,7 +143,7 @@ Returns a mix of Google API popular spots and hard-coded hidden gems.
       "lng": 12.3397
     },
     {
-      "placeId": "v_gem_1",
+      "id": "v_gem_1",
       "name": "Libreria Acqua Alta",
       "category": "Hidden Gem",
       "rating": 4.7,
