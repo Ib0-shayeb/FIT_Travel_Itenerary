@@ -24,6 +24,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 else:
     print("⚠️ WARNING: Supabase URL or Key missing. Database calls will fail.")
+    supabase = None
 
 # 1. Your External API Clients
 from flight_client import FlightClient
@@ -143,15 +144,26 @@ def optimize_trip(request_data: OptimizeRequest):
     print(request_data)
 
     try:
-        db_response = supabase.table('medical_nodes').select("*").execute()
-        live_medical_nodes = db_response.data
+        if supabase:
+            db_response = supabase.table('medical_nodes').select("*").execute()
+            live_medical_nodes = db_response.data
+        else:
+            live_medical_nodes = []
     except Exception as e:
         print(f"❌ Supabase Error during optimization: {e}")
         live_medical_nodes = []
 
-    medical_coords = [
-        Coordinate(lat=node['lat'], lng=node['lng'])
-        for node in live_medical_nodes
+    medical_models = [
+        MedicalNode(
+            id=str(node.get('id', '')),
+            name=node.get('name', 'Unknown'),
+            facility_type=node.get('facility_type', 'Hospital'),
+            lat=node.get('lat', 0.0),
+            lng=node.get('lng', 0.0),
+            is_24_7=node.get('is_24_7', True),
+            local_phone=node.get('local_phone', ''),
+            emergency_dispatch=node.get('emergency_dispatch', '112')
+        ) for node in live_medical_nodes
     ]
 
     optimizer = SafeMedicalOptimizer()
@@ -160,79 +172,73 @@ def optimize_trip(request_data: OptimizeRequest):
         trip_duration_days=request_data.days,
         hotel=request_data.hotel,
         places=request_data.places,
-        medical_nodes=medical_coords
+        medical_nodes=medical_models
     )
 
     return final_response
 
 
-
 # --- RECOMMENDATION ENDPOINTS ---
-
 @app.post("/api/recommendations/places")
 async def get_recommended_places(request_data: dict):
 
     interests = request_data.get("interests", [])
     preferences = request_data.get("preferences", {})
 
-    print("USER PREFERENCES:", preferences)
-
     print("INTERESTS:", interests)
     print("PREFERENCES:", preferences)
 
-
-
-    search_query = "tourist attractions in Venice"
-
-    if "Food" in interests:
-        search_query = "best restaurants in Venice"
-
-    elif "History" in interests:
-        search_query = "historical places in Venice"
-
-    elif "Art" in interests:
-        search_query = "art museums in Venice"
-
-    elif "Nature" in interests:
-        search_query = "parks and nature in Venice"
-
-    elif "Shopping" in interests:
-        search_query = "shopping centers in Venice"
-
-    elif "Nightlife" in interests:
-        search_query = "nightlife bars in Venice"
-
-    print("SEARCH QUERY:", search_query)
+    interest_queries = {
+        "Food": "best restaurants in Venice",
+        "History": "historical places in Venice",
+        "Art": "art museums in Venice",
+        "Nature": "parks and nature in Venice",
+        "Shopping": "shopping centers in Venice",
+        "Nightlife": "nightlife bars in Venice",
+    }
 
     live_medical_nodes = []
 
-    live_places = await client.get_place_recommendations(
-        search_query,
-        live_medical_nodes
-    )
+    all_places = []
+    for interest in interests:
+        if interest in interest_queries:
+            places_for_interest = await client.get_place_recommendations(
+                interest_queries[interest], live_medical_nodes
+            )
+            all_places.extend(places_for_interest)
+
+    # Duplicate'leri temizle
+    seen_ids = set()
+    live_places = []
+    for place in all_places:
+        if place.get("id") not in seen_ids:
+            seen_ids.add(place.get("id"))
+            live_places.append(place)
+
+    # Hiç interest seçilmediyse default
+    if not live_places:
+        live_places = await client.get_place_recommendations(
+            "tourist attractions in Venice", live_medical_nodes
+        )
 
     filtered_places = live_places
 
     if preferences.get("asthmaFriendly"):
-
         filtered_places = [
             place for place in filtered_places
-             if "bar" not in place.get("name", "").lower()
+            if "bar" not in place.get("name", "").lower()
         ]
 
     if preferences.get("lowWalking"):
-
         filtered_places = filtered_places[:3]
 
     if preferences.get("avoidCrowds"):
-
         filtered_places = [
             place for place in filtered_places
             if place.get("reviewVolume", 0) < 5000
         ]
 
     if preferences.get("elderlyFriendly"):
-
         filtered_places = filtered_places[:4]
 
     return {
