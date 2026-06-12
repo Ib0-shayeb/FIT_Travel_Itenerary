@@ -23,6 +23,8 @@ export default function Results({
   const [hotelQuery, setHotelQuery] = useState("");
   const [hotels, setHotels] = useState([]);
   const [hotelResults, setHotelResults] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [allDailyRoutes, setAllDailyRoutes] = useState([]);
 
   const fetchHotels = async () => {
   try {
@@ -91,16 +93,28 @@ const searchHotels = async (query) => {
       setSelectedPlaces([...selectedPlaces, place]);
     }
   };
-const handleBuildRoute = async () => {
-  console.log("RESULTS selectedHotel:", selectedHotel);
-  console.log("RESULTS selectedPlaces:", selectedPlaces);
-  try {
+ const handleBuildRoute = async () => {
+    if (!selectedHotel) {
+    alert("Please select a hotel first.");
+    return;
+  }
 
-    const buildBody = {
-      days: Number(duration),
-      hotel: selectedHotel,
-      places: selectedPlaces,
-    };
+   try {
+      const buildBody = {
+     days: Number(duration),
+     hotel: {
+    id: selectedHotel.id,
+    name: selectedHotel.name,
+    coords: { lat: selectedHotel.lat, lng: selectedHotel.lng },
+    durationMins: 0,
+    },
+      places: selectedPlaces.map(p => ({
+       id: p.id,
+      name: p.name,
+      coords: { lat: p.lat, lng: p.lng },
+      durationMins: 45,
+    })),
+  };
 
      console.log(
       "BUILD BODY:",
@@ -124,20 +138,17 @@ const handleBuildRoute = async () => {
 
     console.log("OPTIMIZE RESPONSE:", data);
 
-    setOptimizedRoute(data.dailyRoutes || []);
+    setAllDailyRoutes(data.dailyRoutes || []);
+    setOptimizedRoute(data.dailyRoutes?.[0]?.route || []);
+
+    console.log("optimizedRoute:", data.dailyRoutes?.[0]?.route); 
+    console.log("places:", places);
 
   } catch (error) {
     console.error("Route optimization failed:", error);
   }
 };
-  const mockTimes = [
-    "09:00",
-    "10:30",
-    "12:00",
-    "14:00",
-    "16:00",
-    "18:00",
-  ];
+ 
 
   return (
     <div className="min-h-screen bg-slate-100 p-6">
@@ -160,6 +171,26 @@ const handleBuildRoute = async () => {
 >
   Build Route
 </button>
+{allDailyRoutes.length > 1 && (
+  <div className="flex gap-2 mt-3">
+    {allDailyRoutes.map((day, i) => (
+      <button
+        key={i}
+        onClick={() => {
+          setSelectedDay(i);
+          setOptimizedRoute(day.route);
+        }}
+        className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
+          selectedDay === i
+            ? "bg-sky-500 text-white"
+            : "bg-slate-200 text-slate-700"
+        }`}
+      >
+        Day {day.dayNumber} · {Math.round(day.totalTimeMinutes / 60 * 10) / 10}h
+      </button>
+    ))}
+  </div>
+)}
 
           </div>
 
@@ -253,6 +284,7 @@ const handleBuildRoute = async () => {
               const isSelected = selectedPlaces.some(
                 (p) => p.id === place.id
               );
+              const routeStep = optimizedRoute.find(r => r.name === place.name);
 
               return (
 
@@ -270,7 +302,7 @@ const handleBuildRoute = async () => {
                     <div>
 
                       <p className="text-sky-500 font-bold text-sm mb-1">
-                        {mockTimes[index % mockTimes.length]}
+                        {routeStep ? `Stop ${routeStep.step}` : ""}
                       </p>
 
                       <h2 className="text-xl font-semibold text-slate-800">
@@ -290,7 +322,10 @@ const handleBuildRoute = async () => {
                   <div className="mt-4 flex flex-wrap gap-2">
 
                     <span className="bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xs">
-                      🚶 12 min walk
+                       {routeStep?.travelToNextMins ? `${routeStep.travelToNextMins} min walk`
+                       :optimizedRoute.length > 0
+                        ? "Not in route"
+                        : "Build route to see"}
                     </span>
 
                     <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs">
@@ -315,6 +350,18 @@ const handleBuildRoute = async () => {
 
               );
             })}
+            {/* SAFETY CHECKPOINTS */}
+{optimizedRoute.filter(r => r.isSafetyNode).length > 0 && (
+  <div className="mt-4">
+    <p className="font-semibold text-red-500 mb-2">🏥 Safety Checkpoints</p>
+    {optimizedRoute.filter(r => r.isSafetyNode).map((node, i) => (
+      <div key={i} className="rounded-2xl p-4 shadow-md border-2 border-red-300 bg-red-50 mb-2">
+        <p className="text-red-600 font-semibold">{node.name}</p>
+        <p className="text-red-400 text-sm"> {node.travelToNextMins} min walk</p>
+      </div>
+    ))}
+  </div>
+)}
 
           </div>
 
@@ -324,11 +371,11 @@ const handleBuildRoute = async () => {
 
         {/* RIGHT SIDE */}
 
-<div className="flex-1 flex flex-col gap-4">
+<div className="flex-1 flex flex-col gap-4 min-h-[800px]">
 
   {/* MAP */}
 
-  <div className="flex-1 rounded-3xl overflow-hidden shadow-xl">
+  <div className="flex-1 rounded-3xl overflow-hidden shadow-xl min-h-[500px]">
 
     <MapView
   places={places}
@@ -427,11 +474,7 @@ onChange={(e) => {
         Selected Places ({selectedPlaces.length})
       </h2>
 
-      <button
-        className="bg-sky-500 hover:bg-sky-600 text-white px-5 py-2 rounded-xl transition"
-      >
-        Build Route
-      </button>
+      
 
     </div>
 
