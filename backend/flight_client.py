@@ -25,15 +25,10 @@ class FlightClient:
         if not self.api_key:
             return [{"error": "API Key missing"}]
 
-        # 1. Dynamically build the passenger list
-        passengers = []
-        for _ in range(adults):
-            passengers.append({"type": "adult"})
+        passengers = [{"type": "adult"} for _ in range(adults)]
         for _ in range(children):
-            # Duffel requires an exact age for minors, but you CANNOT send the "type" key
             passengers.append({"age": 10})
 
-        # 2. Build the dynamic Duffel Offer Request Payload
         payload = {
             "data": {
                 "passengers": passengers,
@@ -48,9 +43,8 @@ class FlightClient:
             }
         }
 
-        print(f"📡 Sending Request to Duffel: {origin_code.upper()} -> {destination_code.upper()} on {departure_date} ({adults} Adults, {children} Kids)...")
+        print(f"INFO: Querying Duffel API: {origin_code.upper()} -> {destination_code.upper()} ({departure_date})")
 
-        # 3. Make the API Call
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -60,26 +54,23 @@ class FlightClient:
                     timeout=10.0
                 )
                 
-                if response.status_code != 201 and response.status_code != 200:
-                    print(f"❌ Duffel API Error: {response.text}")
+                if response.status_code not in (200, 201):
+                    print(f"ERROR: Duffel API request failed with status {response.status_code}: {response.text}")
                     return [{"error": f"Failed to fetch flights. Status {response.status_code}"}]
 
                 data = response.json()
                 return self._format_duffel_offers(data.get("data", {}).get("offers", []))
 
         except Exception as e:
-            print(f"❌ Network Error: {e}")
+            print(f"ERROR: Duffel API connection failure: {e}")
             return [{"error": "Failed to connect to flight API"}]
 
     def _format_duffel_offers(self, raw_offers: list) -> List[Dict]:
         formatted_flights = []
         
-        # Just grab the top 3 cheapest flights so we don't overwhelm the frontend
+        # Limit results to the top 3 items to optimize payload size
         for offer in raw_offers[:3]: 
-            # Extract the airline name from the complex Duffel JSON structure
             airline_name = offer["owner"]["name"]
-            
-            # Use our custom report data to inject insights!
             insights = self._get_custom_airline_insights(airline_name)
 
             formatted_flights.append({
@@ -92,11 +83,6 @@ class FlightClient:
         return formatted_flights
 
     def _get_custom_airline_insights(self, airline: str) -> Dict:
-        """
-        This matches the exact Review Analysis from your university report!
-        (Note: Duffel Test environment usually returns 'Duffel Airways', 
-        so we added a fallback for that).
-        """
         report_data = {
             "Ryanair": {
                 "price": "Very low",
@@ -121,8 +107,6 @@ class FlightClient:
             }
         }
         
-        # If the airline is in our report, use our custom data. 
-        # Otherwise, return a generic safe response.
         return report_data.get(airline, {
             "price": "Unknown",
             "comfort": "Unknown",
